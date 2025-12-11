@@ -39,6 +39,7 @@ mapas_coleccion = db["Mapas"]
 archivos_coleccion = db["Archivos"]
 usuarios_coleccion = db["Usuarios"]
 marcadores_coleccion = db["Marcadores"]
+visitas_coleccion = db["Visitas"]
 
 app = FastAPI()
 
@@ -98,6 +99,7 @@ async def login(data: TokenData, request: Request):
 
         # 4. Guardamos al usuario en la cookie de SESIÓN
         request.session['user'] = user_info
+        request.session['token'] = data.token  # Guardamos el token si lo necesitamos luego
         
         return RedirectResponse(url='/mapa', status_code=303)
 
@@ -126,13 +128,19 @@ async def home(request: Request, user: dict = Depends(get_user)):
 
 ############## MAPAS Y MARCADORES ################
 @app.get("/mapa")
-async def ver_mapa(request: Request, user: dict = Depends(get_user)):
+async def ver_mapa(request: Request, email: Optional[str] = None, user: dict = Depends(get_user)):
     """
     Vista principal: Muestra el mapa con los marcadores del usuario.
     """
+    if not user:
+        return RedirectResponse(url='/', status_code=303)
+
+    correo_objetivo = email or user["email"]
+    puede_editar = correo_objetivo == user["email"]
+
     # 1. Recuperamos los marcadores de la BD usando la misma lógica que el endpoint
     marcadores_list = []
-    cursor = marcadores_coleccion.find({"email_usuario": user["email"]})
+    cursor = marcadores_coleccion.find({"email_usuario": correo_objetivo})
     async for doc in cursor:
         # Convertimos a formato usable en JS: lat, lon, ciudad, imagen
         marcadores_list.append({
@@ -142,11 +150,32 @@ async def ver_mapa(request: Request, user: dict = Depends(get_user)):
             "img": doc.get("imagen_url", "")
         })
 
-    # 2. Renderizamos el HTML pasando la lista de marcadores
+    # 2. Registrar visita cuando el usuario consulta un mapa (propio o ajeno)
+    await visitas_coleccion.insert_one({
+        "email_visitado": correo_objetivo,
+        "email_visitante": user["email"],
+        "token_visitante": request.session.get("token", ""),
+        "timestamp": datetime.utcnow()
+    })
+
+    # 3. Recuperar visitas recibidas por el mapa mostrado
+    visitas = []
+    visitas_cursor = visitas_coleccion.find({"email_visitado": correo_objetivo}).sort("timestamp", -1)
+    async for visita in visitas_cursor:
+        visitas.append({
+            "email_visitante": visita.get("email_visitante", "Desconocido"),
+            "token_visitante": visita.get("token_visitante", ""),
+            "timestamp": visita.get("timestamp")
+        })
+
+    # 4. Renderizamos el HTML pasando la lista de marcadores y las visitas
     return templates.TemplateResponse("mapa.html", {
         "request": request,
-        "email_usuario": user["email"],
-        "marcadores": marcadores_list
+        "email_usuario": correo_objetivo,
+        "marcadores": marcadores_list,
+        "puede_editar": puede_editar,
+        "visitas": visitas,
+        "email_actual": user["email"]
     })
 
 @app.post("/marcadores", tags=["Marcadores"])
@@ -158,7 +187,7 @@ async def crear_marcador(marcador: Marcador):
     marcador_dict = marcador.model_dump()
     
     # Insertamos en Mongo
-    await marcador.insert_one(marcador_dict)
+    await marcadores_coleccion.insert_one(marcador_dict)
     
     # Devolvemos el mismo objeto que recibimos (sin el _id de mongo)
     return {"mensaje": "Marcador guardado correctamente", "marcador": marcador}
@@ -170,7 +199,7 @@ async def obtener_marcadores(email: str):
     """
     marcadores = []
     # Buscamos en Mongo filtrando por el email del usuario
-    cursor = marcadores.find({"email_usuario": email})
+    cursor = marcadores_coleccion.find({"email_usuario": email})
     
     async for doc in cursor:
         if "_id" in doc:

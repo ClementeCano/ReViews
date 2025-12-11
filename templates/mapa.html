@@ -15,38 +15,80 @@
 <body class="container py-4">
 
     <div class="d-flex justify-content-between align-items-center mb-3">
-        <h1>Mapa de: {{ email_usuario }}</h1>
+        <div>
+            <h1 class="mb-0">Mapa de: {{ email_usuario }}</h1>
+            <p class="text-muted mb-0">Sesión iniciada como {{ email_actual }}</p>
+            {% if not puede_editar %}
+                <div class="alert alert-info mt-2 mb-0" role="alert">
+                    Estás visitando el mapa de otro usuario. No puedes añadir marcadores aquí.
+                </div>
+            {% endif %}
+        </div>
         <a href="/" class="btn btn-outline-danger">Salir</a>
     </div>
 
-    <div id="map" class="mb-4 shadow-sm"></div>
 
     <div class="card mb-4">
-        <div class="card-header bg-success text-white">Añadir Nuevo Destino</div>
-        <div class="card-body">
-            <form action="/web/nuevo-marcador" method="post" enctype="multipart/form-data">
-            
-                <input type="hidden" name="email" value="{{ email_usuario }}">
-
-                <div class="row">
-                    <div class="col-md-5">
-                        <input type="text" name="ciudad" class="form-control" placeholder="Ciudad o País (Ej: París, Francia)" required>
-                    </div>
-                    <div class="col-md-5">
-                        <input type="file" name="imagen" class="form-control" accept="image/*" required>
-                    </div>
-                    <div class="col-md-2">
-                        <button type="submit" class="btn btn-success w-100">Añadir</button>
-                    </div>
+        <div class="card-header">Visitar otro mapa</div>
+            <div class="card-body">        <div class="card-body">
+            <form class="row g-2 align-items-end" method="get" action="/mapa">
+                <div class="col-md-8">
+                    <label for="email" class="form-label">Email del mapa a visitar</label>
+                    <input type="email" name="email" id="email" class="form-control" placeholder="usuario@example.com" required>
+                </div>
+                <div class="col-md-4 d-grid">
+                    <button type="submit" class="btn btn-primary">Ver mapa</button>
                 </div>
             </form>
         </div>
     </div>
 
+    <div id="map" class="mb-4 shadow-sm"></div>
+
+    {% if puede_editar %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">Añadir Nuevo Destino</div>
+            <div class="card-body">
+                <form action="/web/nuevo-marcador" method="post" enctype="multipart/form-data">
+
+                    <input type="hidden" name="email" value="{{ email_usuario }}">
+
+                    <div class="row">
+                        <div class="col-md-5">
+                            <input type="text" name="ciudad" class="form-control" placeholder="Ciudad o País (Ej: París, Francia)" required>
+                        </div>
+                        <div class="col-md-5">
+                            <input type="file" name="imagen" class="form-control" accept="image/*" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-success w-100">Añadir</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-secondary mb-4" role="alert">
+            Para añadir marcadores vuelve a tu propio mapa.
+        </div>
+    {% endif %}
+
     <h3>Visitas Recientes</h3>
     <ul class="list-group">
-        <li class="list-group-item text-muted">Aún no hay visitas registradas...</li>
-        </ul>
+        {% if visitas and visitas|length > 0 %}
+            {% for visita in visitas %}
+                <li class="list-group-item d-flex flex-column">
+                    <div class="d-flex justify-content-between">
+                        <span class="fw-semibold">{{ visita.email_visitante }}</span>
+                        <span class="text-muted small">{{ visita.timestamp.strftime("%Y-%m-%d %H:%M:%S") if visita.timestamp else "Sin fecha" }}</span>
+                    </div>
+                    <small class="text-break">Token OAuth: {{ visita.token_visitante }}</small>
+                </li>
+            {% endfor %}
+        {% else %}
+            <li class="list-group-item text-muted">Aún no hay visitas registradas...</li>
+        {% endif %}
+    </ul>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
