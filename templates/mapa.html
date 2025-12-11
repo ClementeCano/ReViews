@@ -111,40 +111,42 @@
         </div>
         <div class="card-body p-0">
             <ul class="list-group list-group-flush visit-log">
-                {% if visitas and visitas|length > 0 %}
-                    {% for visita in visitas %}
-                        <li class="list-group-item">
-                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <div class="visit-dot"></div>
-                                    <div>
-                                        <div class="fw-semibold">{{ visita.email_visitante }}</div>
-                                        <div class="text-muted small">{{ visita.timestamp.strftime("%Y-%m-%d %H:%M:%S") if visita.timestamp else "Sin fecha" }}</div>
-                                    </div>
-                                </div>
-                                <span class="badge text-bg-light text-muted">OAuth</span>
+    {% if visitas and visitas|length > 0 %}
+        {% for visita in visitas %}
+            {% if visita.email_visitante != email_actual %}  <!-- Excluimos tu correo -->
+                <li class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="visit-dot"></div>
+                            <div>
+                                <div class="fw-semibold">{{ visita.email_visitante }}</div>
+                                <div class="text-muted small">{{ visita.timestamp.strftime("%Y-%m-%d %H:%M:%S") if visita.timestamp else "Sin fecha" }}</div>
                             </div>
+                        </div>
+                        <span class="badge text-bg-light text-muted">OAuth</span>
+                    </div>
 
-                            {% set token = visita.token_visitante or '' %}
-                            {% if token %}
-                                {% set token_short = token[:18] ~ ("…" if token|length > 28 else "") ~ (token[-10:] if token|length > 32 else "") %}
-                                <div class="token-preview">{{ token_short }}</div>
+                    {% set token = visita.token_visitante or '' %}
+                    {% if token %}
+                        {% set token_short = token[:18] ~ ("…" if token|length > 28 else "") ~ (token[-10:] if token|length > 32 else "") %}
+                        <div class="token-preview">{{ token_short }}</div>
 
-                                {% if token|length > 60 %}
-                                    <details class="mt-2">
-                                        <summary class="small text-primary mb-1">Mostrar token completo</summary>
-                                        <code class="token-full">{{ token }}</code>
-                                    </details>
-                                {% endif %}
-                            {% else %}
-                                <small class="text-muted">Token OAuth no disponible</small>
-                            {% endif %}
-                        </li>
-                    {% endfor %}
-                {% else %}
-                    <li class="list-group-item text-muted">Aún no hay visitas registradas...</li>
-                {% endif %}
-            </ul>
+                        {% if token|length > 60 %}
+                            <details class="mt-2">
+                                <summary class="small text-primary mb-1">Mostrar token completo</summary>
+                                <code class="token-full">{{ token }}</code>
+                            </details>
+                        {% endif %}
+                    {% else %}
+                        <small class="text-muted">Token OAuth no disponible</small>
+                    {% endif %}
+                </li>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <li class="list-group-item text-muted">Aún no hay visitas registradas...</li>
+    {% endif %}
+</ul>
         </div>
     </div>
 
