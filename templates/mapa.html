@@ -8,8 +8,39 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     
     <style>
-        #map { height: 500px; width: 100%; border-radius: 10px; }
-        .thumbnail { max-width: 100px; max-height: 100px; }
+        #map { 
+            height: 500px; width: 100%; border-radius: 10px; 
+        }
+        .thumbnail { 
+            max-width: 100px; max-height: 100px; 
+        }
+        .token-preview {
+            font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 6px 10px;
+            word-break: break-all;
+        }
+        .token-full {
+            font-family: "SFMono-Regular", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            word-break: break-all;
+            display: block;
+            background: #f1f3f5;
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .visit-log li + li {
+            border-top: 1px dashed #e9ecef;
+        }
+        .visit-log .visit-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0d6efd, #6ea8fe);
+            box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.12);
+        }
     </style>
 </head>
 <body class="container py-4">
@@ -73,22 +104,49 @@
         </div>
     {% endif %}
 
-    <h3>Visitas Recientes</h3>
-    <ul class="list-group">
-        {% if visitas and visitas|length > 0 %}
-            {% for visita in visitas %}
-                <li class="list-group-item d-flex flex-column">
-                    <div class="d-flex justify-content-between">
-                        <span class="fw-semibold">{{ visita.email_visitante }}</span>
-                        <span class="text-muted small">{{ visita.timestamp.strftime("%Y-%m-%d %H:%M:%S") if visita.timestamp else "Sin fecha" }}</span>
-                    </div>
-                    <small class="text-break">Token OAuth: {{ visita.token_visitante }}</small>
-                </li>
-            {% endfor %}
-        {% else %}
-            <li class="list-group-item text-muted">Aún no hay visitas registradas...</li>
-        {% endif %}
-    </ul>
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header d-flex align-items-center gap-2">
+            <span class="badge text-bg-primary">Visitas</span>
+            <h5 class="mb-0">Historial reciente</h5>
+        </div>
+        <div class="card-body p-0">
+            <ul class="list-group list-group-flush visit-log">
+                {% if visitas and visitas|length > 0 %}
+                    {% for visita in visitas %}
+                        <li class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="visit-dot"></div>
+                                    <div>
+                                        <div class="fw-semibold">{{ visita.email_visitante }}</div>
+                                        <div class="text-muted small">{{ visita.timestamp.strftime("%Y-%m-%d %H:%M:%S") if visita.timestamp else "Sin fecha" }}</div>
+                                    </div>
+                                </div>
+                                <span class="badge text-bg-light text-muted">OAuth</span>
+                            </div>
+
+                            {% set token = visita.token_visitante or '' %}
+                            {% if token %}
+                                {% set token_short = token[:18] ~ ("…" if token|length > 28 else "") ~ (token[-10:] if token|length > 32 else "") %}
+                                <div class="token-preview">{{ token_short }}</div>
+
+                                {% if token|length > 60 %}
+                                    <details class="mt-2">
+                                        <summary class="small text-primary mb-1">Mostrar token completo</summary>
+                                        <code class="token-full">{{ token }}</code>
+                                    </details>
+                                {% endif %}
+                            {% else %}
+                                <small class="text-muted">Token OAuth no disponible</small>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                {% else %}
+                    <li class="list-group-item text-muted">Aún no hay visitas registradas...</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
