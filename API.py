@@ -48,21 +48,44 @@ app.add_middleware(SessionMiddleware, secret_key="SUPER_SECRET_KEY_RANDOM")
 templates = Jinja2Templates(directory="templates")
 
 # --- Utilidades ---
+def parse_session_datetime(value: Optional[datetime]) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        return value
+
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            return None
+
+    return None
+
+
 def get_session_user(request: Request):
+    token_exp = parse_session_datetime(request.session.get("token_exp"))
+    if token_exp and datetime.now(timezone.utc) >= token_exp:
+        request.session.clear()
+        return None
     return request.session.get("user")
 
 
 def require_user(request: Request):
     user = request.session.get("user")
     token = request.session.get("token")
+    token_exp = parse_session_datetime(request.session.get("token_exp"))
+
     if not user or not token:
         raise HTTPException(status_code=401, detail="No autenticado")
+    
+    if token_exp and datetime.now(timezone.utc) >= token_exp:
+        request.session.clear()
+        raise HTTPException(status_code=401, detail="Token OAuth caducado")
 
     return {
         **user,
         "token": token,
-        "iat": request.session.get("token_iat"),
-        "exp": request.session.get("token_exp"),
+        "iat": parse_session_datetime(request.session.get("token_iat")),
+        "exp": token_exp,
     }
 
 
@@ -153,8 +176,8 @@ async def login(data: dict, request: Request):
 
     request.session["user"] = user_info
     request.session["token"] = token
-    request.session["token_iat"] = issued_dt
-    request.session["token_exp"] = expires_dt
+    request.session["token_iat"] = issued_dt.isoformat() if issued_dt else None
+    request.session["token_exp"] = expires_dt.isoformat() if expires_dt else None
         
     return RedirectResponse(url='/reviews', status_code=303)
 
