@@ -3,6 +3,7 @@ from typing import List, Optional
 
 import cloudinary
 import cloudinary.uploader
+from cloudinary.exceptions import Error as CloudinaryError
 import motor.motor_asyncio as motor
 import requests
 from bson import ObjectId
@@ -93,8 +94,13 @@ def geocode_address(address: str):
     url = "https://nominatim.openstreetmap.org/search"
     params = {"q": address, "format": "json", "limit": 1}
     headers = {"User-Agent": "ReViews/1.0"}
-    response = requests.get(url, params=params, headers=headers, timeout=10)
-    response.raise_for_status()
+    try:
+        response = requests.get(url, params=params, headers=headers, timeout=10)
+        response.raise_for_status()
+    except requests.RequestException as exc:  # pylint: disable=broad-except
+        raise HTTPException(
+            status_code=502, detail="No se pudo contactar con el servicio de geocodificación"
+        ) from exc
     data = response.json()
 
     if not data:
@@ -104,6 +110,10 @@ def geocode_address(address: str):
 
 
 def serialize_review(doc: dict) -> dict:
+    def _iso(value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
     return {
         "id": str(doc.get("_id")),
         "name": doc.get("name"),
@@ -114,10 +124,10 @@ def serialize_review(doc: dict) -> dict:
         "author_email": doc.get("author_email"),
         "author_name": doc.get("author_name"),
         "token": doc.get("token"),
-        "token_issued_at": doc.get("token_issued_at"),
-        "token_expires_at": doc.get("token_expires_at"),
+        "token_issued_at": _iso(doc.get("token_issued_at")),
+        "token_expires_at": _iso(doc.get("token_expires_at")),
         "images": doc.get("images", []),
-        "created_at": doc.get("created_at"),
+        "created_at": _iso(doc.get("created_at")),
     }
 
 
@@ -141,11 +151,16 @@ def upload_images(files: Optional[List[UploadFile]]) -> List[str]:
     for file in files:
         if not file or not file.filename:
             continue
-        result = cloudinary.uploader.upload(
-            file.file,
-            folder="reviews",
-            resource_type="auto",
-        )
+        try:
+            result = cloudinary.uploader.upload(
+                file.file,
+                folder="reviews",
+                resource_type="auto",
+            )
+        except CloudinaryError as exc:  # pylint: disable=broad-except
+            raise HTTPException(
+                status_code=502, detail="No se pudieron subir las imágenes a Cloudinary"
+            ) from exc
         secure_url = result.get("secure_url")
         if secure_url:
             uploaded_urls.append(secure_url)
