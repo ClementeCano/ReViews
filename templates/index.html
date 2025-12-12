@@ -113,7 +113,20 @@
         data-callback="handleCredentialResponse"
         data-client_id="{{ client_id }}"
       ></div>
-      <div class="signin-btn" data-type="standard"></div>
+      <!-- Botón estándar de Google Sign-In -->
+      <div
+        class="g_id_signin"
+        data-type="standard"
+        data-shape="rectangular"
+        data-theme="outline"
+        data-text="sign_in_with"
+        data-size="large"
+        data-logo_alignment="left"
+      ></div>
+
+      <noscript>
+        <p style="color: #b91c1c; margin-top: 12px;">Activa JavaScript para iniciar sesión con Google.</p>
+      </noscript>
     </div>
   </body>
 </html>
