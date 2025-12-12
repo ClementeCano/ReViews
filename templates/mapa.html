@@ -59,6 +59,9 @@
                                 <div>
                                     <div class="fw-semibold">{{ review.name }}</div>
                                     <div class="text-muted small">{{ review.address }}</div>
+                                    {% if review.latitude and review.longitude %}
+                                        <div class="text-muted small">({{ '%.6f'|format(review.latitude) }}, {{ '%.6f'|format(review.longitude) }})</div>
+                                    {% endif %}
                                 </div>
                                 <span class="badge text-bg-warning text-dark">{{ review.rating }} / 5</span>
                             </a>
